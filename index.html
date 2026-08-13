@@ -17,6 +17,8 @@
     --border:         rgba(11,11,11,0.10);
     --series-blue:    #2a78d6;
     --series-orange:  #eb6834;
+    --series-aqua:    #1baf7a;
+    --series-yellow:  #eda100;
     --good:           #0ca30c;
     --good-bg:        #e6f6e6;
     --card-bg:        #ffffff;
@@ -35,6 +37,8 @@
       --border:         rgba(255,255,255,0.10);
       --series-blue:    #3987e5;
       --series-orange:  #d95926;
+      --series-aqua:    #199e70;
+      --series-yellow:  #c98500;
       --good:           #0ca30c;
       --good-bg:        #123312;
       --card-bg:        #232322;
@@ -166,6 +170,11 @@
   .empty-state{ text-align:center; padding: 30px 10px; color: var(--text-secondary); }
   .empty-state .ico{ font-size:44px; margin-bottom:8px; }
 
+  .legend-row{ display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-top:8px; font-size:13px; color: var(--text-secondary); }
+  .legend-row .chip{ display:inline-flex; align-items:center; gap:6px; }
+  .legend-row .dot{ width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .stepper-label{ text-align:center; font-size:14px; font-weight:700; color: var(--text-secondary); margin-bottom:2px; }
+
   svg.chart{ width:100%; height:auto; display:block; }
   input[type=file]{ display:none; }
 </style>
@@ -242,6 +251,33 @@
     </div>
 
     <div class="card">
+      <h2>💗 けつあつ</h2>
+      <div class="toggle-row">
+        <button id="bp-off-btn" class="on" onclick="setBpMeasured(false)">はかって いない</button>
+        <button id="bp-on-btn" onclick="setBpMeasured(true)">はかった</button>
+      </div>
+      <div id="bp-input-area" style="display:none;">
+        <div class="stepper-label">うえ(しゅうしゅくき)</div>
+        <div class="stepper-row">
+          <button onclick="stepSystolic(-10)">-10</button>
+          <button onclick="stepSystolic(-1)">-1</button>
+          <div class="val-display" id="systolic-val">120</div>
+          <button onclick="stepSystolic(1)">+1</button>
+          <button onclick="stepSystolic(10)">+10</button>
+        </div>
+        <div class="stepper-label">した(かくちょうき)</div>
+        <div class="stepper-row">
+          <button onclick="stepDiastolic(-10)">-10</button>
+          <button onclick="stepDiastolic(-1)">-1</button>
+          <div class="val-display" id="diastolic-val">80</div>
+          <button onclick="stepDiastolic(1)">+1</button>
+          <button onclick="stepDiastolic(10)">+10</button>
+        </div>
+        <div class="unit">mmHg</div>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>📝 きょう できたこと</h2>
       <div id="checklist-area"></div>
     </div>
@@ -258,6 +294,10 @@
     <div class="card">
       <h2>🩸 けっとうちの へんか</h2>
       <div id="glucose-chart-area"></div>
+    </div>
+    <div class="card">
+      <h2>💗 けつあつの へんか</h2>
+      <div id="bp-chart-area"></div>
     </div>
   </section>
 
@@ -395,6 +435,13 @@ function lastWeightBefore(){
   if(dates.length===0) return 75.0;
   return records[dates[dates.length-1]].weight;
 }
+function lastBpBefore(){
+  const dates = Object.keys(records).sort().reverse();
+  for(const d of dates){
+    if(records[d].bp && records[d].bp.measured) return {systolic:records[d].bp.systolic, diastolic:records[d].bp.diastolic};
+  }
+  return {systolic:120, diastolic:80};
+}
 
 /* ===================== 画面切り替え ===================== */
 function goScreen(name){
@@ -434,8 +481,10 @@ function changeDate(diff){
 function loadDraftForDate(){
   if(records[currentDate]){
     currentDraft = JSON.parse(JSON.stringify(records[currentDate]));
+    if(!currentDraft.bp){ const lastBp = lastBpBefore(); currentDraft.bp = { measured:false, systolic: lastBp.systolic, diastolic: lastBp.diastolic }; }
   } else {
-    currentDraft = { weight: lastWeightBefore(), measured:false, glucose:100, checklist:{} };
+    const lastBp = lastBpBefore();
+    currentDraft = { weight: lastWeightBefore(), measured:false, glucose:100, bp:{ measured:false, systolic:lastBp.systolic, diastolic:lastBp.diastolic }, checklist:{} };
   }
 }
 function renderLogScreen(){
@@ -446,6 +495,12 @@ function renderLogScreen(){
   document.getElementById("glucose-off-btn").classList.toggle("on", !currentDraft.measured);
   document.getElementById("glucose-on-btn").classList.toggle("on", !!currentDraft.measured);
   document.getElementById("glucose-input-area").style.display = currentDraft.measured ? "block" : "none";
+
+  document.getElementById("systolic-val").textContent = Math.round(currentDraft.bp.systolic);
+  document.getElementById("diastolic-val").textContent = Math.round(currentDraft.bp.diastolic);
+  document.getElementById("bp-off-btn").classList.toggle("on", !currentDraft.bp.measured);
+  document.getElementById("bp-on-btn").classList.toggle("on", !!currentDraft.bp.measured);
+  document.getElementById("bp-input-area").style.display = currentDraft.bp.measured ? "block" : "none";
 
   const area = document.getElementById("checklist-area");
   area.innerHTML = "";
@@ -472,6 +527,18 @@ function setGlucoseMeasured(v){
   currentDraft.measured = v;
   renderLogScreen();
 }
+function stepSystolic(delta){
+  currentDraft.bp.systolic = Math.max(60, Math.min(260, currentDraft.bp.systolic + delta));
+  renderLogScreen();
+}
+function stepDiastolic(delta){
+  currentDraft.bp.diastolic = Math.max(40, Math.min(180, currentDraft.bp.diastolic + delta));
+  renderLogScreen();
+}
+function setBpMeasured(v){
+  currentDraft.bp.measured = v;
+  renderLogScreen();
+}
 function saveEntry(){
   records[currentDate] = JSON.parse(JSON.stringify(currentDraft));
   toast("✅ " + fmtDateJP(currentDate) + " の きろくを ほぞんしました");
@@ -483,24 +550,45 @@ function renderCharts(){
   const dates = Object.keys(records).sort();
   const weightPts = dates.filter(d=>records[d].weight!=null).map(d=>({date:d, value:records[d].weight}));
   const glucosePts = dates.filter(d=>records[d].measured).map(d=>({date:d, value:records[d].glucose}));
+  const bpDates = dates.filter(d=>records[d].bp && records[d].bp.measured);
+  const systolicPts = bpDates.map(d=>({date:d, value:records[d].bp.systolic}));
+  const diastolicPts = bpDates.map(d=>({date:d, value:records[d].bp.diastolic}));
 
-  document.getElementById("weight-chart-area").innerHTML = chartOrEmpty(weightPts, "#2a78d6", "kg", "たいじゅうの きろくが まだ ありません");
-  document.getElementById("glucose-chart-area").innerHTML = chartOrEmpty(glucosePts, "#eb6834", "mg/dL", "けっとうちの きろくが まだ ありません");
+  document.getElementById("weight-chart-area").innerHTML = chartOrEmpty(weightPts, "var(--series-blue)", "kg", "たいじゅうの きろくが まだ ありません", {zeroBaseline:true});
+  document.getElementById("glucose-chart-area").innerHTML = chartOrEmpty(glucosePts, "var(--series-orange)", "mg/dL", "けっとうちの きろくが まだ ありません");
+
+  if(systolicPts.length===0){
+    document.getElementById("bp-chart-area").innerHTML = `<div class="empty-state"><div class="ico">📭</div><div>けつあつの きろくが まだ ありません</div></div>`;
+  } else {
+    document.getElementById("bp-chart-area").innerHTML = buildSvgChartMulti([
+      {name:"うえ(しゅうしゅくき)", color:"var(--series-aqua)", points: systolicPts},
+      {name:"した(かくちょうき)", color:"var(--series-yellow)", points: diastolicPts},
+    ], "mmHg") + buildTableMulti(bpDates, [
+      {label:"うえ", get:d=>records[d].bp.systolic},
+      {label:"した", get:d=>records[d].bp.diastolic},
+    ], "mmHg");
+  }
 }
-function chartOrEmpty(pts, color, unit, emptyMsg){
+function chartOrEmpty(pts, color, unit, emptyMsg, opts){
+  opts = opts || {};
   if(pts.length===0){
     return `<div class="empty-state"><div class="ico">📭</div><div>${emptyMsg}</div></div>`;
   }
-  return buildSvgChart(pts, color, unit) + buildTable(pts, unit);
+  return buildSvgChart(pts, color, unit, opts.zeroBaseline) + buildTable(pts, unit);
 }
-function buildSvgChart(pts, color, unit){
+function buildSvgChart(pts, color, unit, zeroBaseline){
   const W = 500, H = 220, padL = 42, padR = 16, padT = 16, padB = 30;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const values = pts.map(p=>p.value);
   let minV = Math.min(...values), maxV = Math.max(...values);
   if(minV===maxV){ minV -= 1; maxV += 1; }
-  const pad = (maxV-minV)*0.15;
-  minV -= pad; maxV += pad;
+  if(zeroBaseline){
+    minV = 0;
+    maxV = Math.max(...values) * 1.15;
+  } else {
+    const pad = (maxV-minV)*0.15;
+    minV -= pad; maxV += pad;
+  }
 
   const x = i => pts.length===1 ? padL + plotW/2 : padL + (plotW * i/(pts.length-1));
   const y = v => padT + plotH - ((v-minV)/(maxV-minV))*plotH;
@@ -544,6 +632,59 @@ function buildTable(pts, unit){
   const recent = pts.slice(-7).reverse();
   let rows = recent.map(p=>`<tr><td>${fmtDateJP(p.date)}</td><td>${p.value} ${unit}</td></tr>`).join("");
   return `<h3>📋 さいきんの きろく</h3><table class="simple-table"><tr><th>ひづけ</th><th>あたい</th></tr>${rows}</table>`;
+}
+function buildSvgChartMulti(seriesArr, unit){
+  const W = 500, H = 220, padL = 42, padR = 16, padT = 16, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const allPts = seriesArr[0].points;
+  const allValues = seriesArr.flatMap(s=>s.points.map(p=>p.value));
+  let minV = Math.min(...allValues), maxV = Math.max(...allValues);
+  if(minV===maxV){ minV -= 1; maxV += 1; }
+  const pad = (maxV-minV)*0.15;
+  minV -= pad; maxV += pad;
+
+  const x = i => allPts.length===1 ? padL + plotW/2 : padL + (plotW * i/(allPts.length-1));
+  const y = v => padT + plotH - ((v-minV)/(maxV-minV))*plotH;
+
+  let grid = "";
+  const steps = 4;
+  for(let i=0;i<=steps;i++){
+    const gv = minV + (maxV-minV)*i/steps;
+    const gy = y(gv);
+    grid += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="var(--gridline)" stroke-width="1"/>`;
+    grid += `<text x="${padL-6}" y="${gy+4}" font-size="11" fill="var(--text-muted)" text-anchor="end">${gv.toFixed(0)}</text>`;
+  }
+
+  const labelEvery = allPts.length > 8 ? Math.ceil(allPts.length/8) : 1;
+  let xlabels = "";
+  allPts.forEach((p,i)=>{
+    if(i % labelEvery === 0 || i===allPts.length-1){
+      xlabels += `<text x="${x(i).toFixed(1)}" y="${H-8}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${fmtDateShort(p.date)}</text>`;
+    }
+  });
+
+  let seriesSvg = "";
+  seriesArr.forEach(s=>{
+    let path = s.points.map((p,i)=> (i===0?"M":"L") + x(i).toFixed(1) + " " + y(p.value).toFixed(1)).join(" ");
+    let points = s.points.map((p,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="5" fill="${s.color}" stroke="var(--surface-1)" stroke-width="1.5"/>`).join("");
+    seriesSvg += `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${points}`;
+  });
+
+  const legend = `<div class="legend-row">` + seriesArr.map(s=>`<span class="chip"><span class="dot" style="background:${s.color}"></span>${s.name}</span>`).join("") + `</div>`;
+
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    ${grid}
+    <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="var(--baseline)" stroke-width="1.5"/>
+    ${seriesSvg}
+    ${xlabels}
+  </svg>
+  ${legend}`;
+}
+function buildTableMulti(dates, cols, unit){
+  const recent = dates.slice(-7).reverse();
+  let head = `<th>ひづけ</th>` + cols.map(c=>`<th>${c.label}</th>`).join("");
+  let rows = recent.map(d=>`<tr><td>${fmtDateJP(d)}</td>` + cols.map(c=>`<td>${c.get(d)} ${unit}</td>`).join("") + `</tr>`).join("");
+  return `<h3>📋 さいきんの きろく</h3><table class="simple-table"><tr>${head}</tr>${rows}</table>`;
 }
 
 /* ===================== メニュー画面 ===================== */
