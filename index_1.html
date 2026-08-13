@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>けんこうサポートアプリ</title>
+<style>
+  :root{
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-blue:    #2a78d6;
+    --series-orange:  #eb6834;
+    --good:           #0ca30c;
+    --good-bg:        #e6f6e6;
+    --card-bg:        #ffffff;
+    --accent-bg:      #eaf3ee;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-blue:    #3987e5;
+      --series-orange:  #d95926;
+      --good:           #0ca30c;
+      --good-bg:        #123312;
+      --card-bg:        #232322;
+      --accent-bg:      #16241c;
+    }
+  }
+  * { box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--page); color:var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body{ padding-bottom: 92px; }
+  .wrap{ max-width: 560px; margin: 0 auto; padding: 16px 16px 8px; }
+
+  header.app-header{
+    background: var(--series-blue); color:#fff;
+    padding: 18px 16px 22px; text-align:center;
+  }
+  header.app-header h1{ margin:0 0 4px; font-size: 22px; }
+  header.app-header p{ margin:0; font-size: 14px; opacity:0.9; }
+
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+
+  .card{
+    background: var(--card-bg); border:1px solid var(--border); border-radius: 16px;
+    padding: 16px; margin-bottom: 14px;
+  }
+  .card h2{ font-size: 18px; margin: 0 0 10px; display:flex; align-items:center; gap:8px; }
+  .card h3{ font-size:16px; margin: 14px 0 8px; color: var(--text-secondary); }
+  .muted{ color: var(--text-secondary); font-size: 14px; line-height:1.6; }
+
+  .big-btn{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    width:100%; min-height:60px; font-size:18px; font-weight:700;
+    border-radius:14px; border:none; cursor:pointer;
+    background: var(--series-blue); color:#fff; margin-bottom:12px;
+    padding: 10px 14px;
+  }
+  .big-btn.secondary{ background: var(--accent-bg); color: var(--text-primary); border:1px solid var(--border); }
+  .big-btn.orange{ background: var(--series-orange); }
+  .big-btn:active{ transform: scale(0.98); }
+
+  .shortcut-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  .shortcut-grid .big-btn{ min-height: 84px; flex-direction:column; font-size:16px; }
+  .shortcut-grid .big-btn span.ico{ font-size: 30px; }
+
+  nav.bottom-nav{
+    position: fixed; bottom:0; left:0; right:0; background: var(--surface-1);
+    border-top: 1px solid var(--border); display:flex; z-index:10;
+  }
+  nav.bottom-nav button{
+    flex:1; background:none; border:none; padding: 8px 2px 10px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+    color: var(--text-muted); font-size:12px; min-height: 60px;
+  }
+  nav.bottom-nav button span.ico{ font-size:22px; }
+  nav.bottom-nav button.active{ color: var(--series-blue); font-weight:700; }
+
+  .stat-tile{
+    background: var(--accent-bg); border-radius:14px; padding:16px; text-align:center; margin-bottom:14px;
+  }
+  .stat-tile .value{ font-size: 40px; font-weight:800; color: var(--series-blue); }
+  .stat-tile .label{ font-size:14px; color: var(--text-secondary); }
+
+  .stepper-row{ display:flex; align-items:center; justify-content:center; gap:6px; margin: 10px 0; flex-wrap:nowrap; }
+  .stepper-row button{
+    min-width:44px; min-height:48px; border-radius:12px; border:1px solid var(--border);
+    background: var(--accent-bg); font-size:14px; font-weight:700; cursor:pointer; color:var(--text-primary);
+    padding: 0 4px; flex-shrink:0;
+  }
+  .stepper-row .val-display{
+    min-width:92px; text-align:center; font-size: 26px; font-weight:800; color: var(--text-primary);
+    flex-shrink:0;
+  }
+  .unit{ font-size:14px; color:var(--text-secondary); text-align:center; margin-top:-6px; margin-bottom:6px; }
+
+  .date-row{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom: 10px; }
+  .date-row .date-display{ font-size:20px; font-weight:700; min-width:170px; text-align:center; }
+  .date-row button{ min-width:48px; min-height:48px; border-radius:10px; border:1px solid var(--border); background:var(--accent-bg); font-size:18px; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px;
+  }
+  .toggle-row button{
+    flex:1; max-width:200px; padding:12px; border-radius:12px; border:1px solid var(--border);
+    background: var(--accent-bg); font-size:15px; font-weight:700; cursor:pointer; color:var(--text-primary);
+  }
+  .toggle-row button.on{ background: var(--series-blue); color:#fff; border-color: var(--series-blue); }
+
+  .check-item{
+    display:flex; align-items:center; gap:12px; padding:14px; border-radius:14px;
+    border:1px solid var(--border); background: var(--card-bg); margin-bottom:10px; cursor:pointer;
+    min-height:56px;
+  }
+  .check-item .ico{ font-size:26px; }
+  .check-item .txt{ flex:1; font-size:15px; font-weight:600; }
+  .check-item .mark{ font-size:22px; color: var(--text-muted); }
+  .check-item.done{ background: var(--good-bg); border-color: var(--good); }
+  .check-item.done .mark{ color: var(--good); }
+
+  .menu-card{ display:flex; gap:12px; padding:12px; border-radius:14px; border:1px solid var(--border); margin-bottom:10px; background:var(--card-bg); }
+  .menu-card .ico{ font-size:28px; }
+  .menu-card .title{ font-weight:700; margin-bottom:2px; }
+  .menu-card .desc{ font-size:14px; color:var(--text-secondary); line-height:1.5; }
+
+  table.simple-table{ width:100%; border-collapse: collapse; font-size:14px; }
+  table.simple-table th, table.simple-table td{ border-bottom:1px solid var(--gridline); padding:8px 6px; text-align:left; }
+  table.simple-table th{ color: var(--text-secondary); font-weight:700; }
+
+  .tabbtns{ display:flex; gap:8px; margin-bottom:14px; }
+  .tabbtns button{
+    flex:1; padding:12px; border-radius:12px; border:1px solid var(--border); background: var(--accent-bg);
+    font-weight:700; font-size:15px; cursor:pointer; color:var(--text-primary);
+  }
+  .tabbtns button.on{ background: var(--series-blue); color:#fff; border-color: var(--series-blue); }
+  .tabpane{ display:none; }
+  .tabpane.on{ display:block; }
+
+  .toast{
+    position: fixed; left:50%; bottom: 100px; transform: translateX(-50%);
+    background: var(--good); color:#fff; padding: 12px 20px; border-radius: 12px;
+    font-weight:700; font-size:15px; opacity:0; pointer-events:none; transition: opacity .25s;
+    z-index: 50; text-align:center; max-width: 90%;
+  }
+  .toast.show{ opacity:1; }
+
+  .empty-state{ text-align:center; padding: 30px 10px; color: var(--text-secondary); }
+  .empty-state .ico{ font-size:44px; margin-bottom:8px; }
+
+  svg.chart{ width:100%; height:auto; display:block; }
+  input[type=file]{ display:none; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>🌱 けんこうサポートアプリ</h1>
+  <p>いまの たいじゅう 75kg → もくひょう 65kg</p>
+</header>
+
+<div class="wrap">
+
+  <!-- ホーム -->
+  <section id="screen-home" class="screen active">
+    <div class="stat-tile">
+      <div class="label">さいしんの たいじゅう</div>
+      <div class="value" id="home-latest-weight">--</div>
+      <div class="label" id="home-latest-date">まだ きろくが ありません</div>
+    </div>
+
+    <div class="card">
+      <p class="muted">はじめて つかうときは、したの「① きろくする」から にゅうりょくしてね。<br>まえに ほぞんした ファイルが あるひとは「⑤ ほぞん・よみこみ」から よみこんでね。</p>
+    </div>
+
+    <div class="shortcut-grid">
+      <button class="big-btn" onclick="goScreen('log')"><span class="ico">✅</span>① きろくする</button>
+      <button class="big-btn orange" onclick="goScreen('chart')"><span class="ico">📈</span>② グラフを みる</button>
+      <button class="big-btn secondary" onclick="goScreen('menu')"><span class="ico">🍽️</span>③ メニューを みる</button>
+      <button class="big-btn secondary" onclick="goScreen('save')"><span class="ico">💾</span>⑤ ほぞん・よみこみ</button>
+    </div>
+  </section>
+
+  <!-- きろく -->
+  <section id="screen-log" class="screen">
+    <div class="card">
+      <h2>📅 きろくする ひ</h2>
+      <div class="date-row">
+        <button onclick="changeDate(-1)">◀</button>
+        <div class="date-display" id="log-date-display">-</div>
+        <button onclick="changeDate(1)">▶</button>
+      </div>
+      <p class="muted" style="text-align:center;">◀ ▶ ボタンで、きろくする ひを えらべます</p>
+    </div>
+
+    <div class="card">
+      <h2>⚖️ たいじゅう</h2>
+      <div class="stepper-row">
+        <button onclick="stepWeight(-1)">-1</button>
+        <button onclick="stepWeight(-0.1)">-0.1</button>
+        <div class="val-display" id="weight-val">75.0</div>
+        <button onclick="stepWeight(0.1)">+0.1</button>
+        <button onclick="stepWeight(1)">+1</button>
+      </div>
+      <div class="unit">kg</div>
+    </div>
+
+    <div class="card">
+      <h2>🩸 けっとうち</h2>
+      <div class="toggle-row">
+        <button id="glucose-off-btn" class="on" onclick="setGlucoseMeasured(false)">はかって いない</button>
+        <button id="glucose-on-btn" onclick="setGlucoseMeasured(true)">はかった</button>
+      </div>
+      <div id="glucose-input-area" style="display:none;">
+        <div class="stepper-row">
+          <button onclick="stepGlucose(-10)">-10</button>
+          <button onclick="stepGlucose(-1)">-1</button>
+          <div class="val-display" id="glucose-val">100</div>
+          <button onclick="stepGlucose(1)">+1</button>
+          <button onclick="stepGlucose(10)">+10</button>
+        </div>
+        <div class="unit">mg/dL</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 きょう できたこと</h2>
+      <div id="checklist-area"></div>
+    </div>
+
+    <button class="big-btn" onclick="saveEntry()">✅ この ひの きろくを ほぞんする</button>
+  </section>
+
+  <!-- グラフ -->
+  <section id="screen-chart" class="screen">
+    <div class="card">
+      <h2>⚖️ たいじゅうの へんか</h2>
+      <div id="weight-chart-area"></div>
+    </div>
+    <div class="card">
+      <h2>🩸 けっとうちの へんか</h2>
+      <div id="glucose-chart-area"></div>
+    </div>
+  </section>
+
+  <!-- メニュー -->
+  <section id="screen-menu" class="screen">
+    <div class="tabbtns">
+      <button id="tab-meal-btn" class="on" onclick="showTab('meal')">🍽️ しょくじ</button>
+      <button id="tab-exercise-btn" onclick="showTab('exercise')">🏃 うんどう</button>
+    </div>
+
+    <div id="tab-meal" class="tabpane on"></div>
+    <div id="tab-exercise" class="tabpane"></div>
+  </section>
+
+  <!-- ほぞん -->
+  <section id="screen-save" class="screen">
+    <div class="card">
+      <h2>💾 きろくを ほぞんする</h2>
+      <p class="muted">ボタンを おすと、これまでの きろくを 1まいの ファイルに して ほぞんできます。<br>スマホ・パソコンの わかりやすい ばしょ(例:「ダウンロード」フォルダ)に ほぞんしてね。</p>
+      <button class="big-btn" onclick="downloadData()">💾 きろくを ファイルに ほぞんする</button>
+      <p class="muted" id="save-status">まだ ほぞんして いません</p>
+    </div>
+
+    <div class="card">
+      <h2>📂 きろくを よみこむ</h2>
+      <p class="muted">まえに ほぞんした ファイルを えらぶと、きろくが もどってきます。</p>
+      <button class="big-btn secondary" onclick="document.getElementById('file-input').click()">📂 ファイルを えらんで よみこむ</button>
+      <input type="file" id="file-input" accept="application/json" onchange="loadDataFile(event)">
+      <p class="muted" id="load-status"></p>
+    </div>
+
+    <div class="card">
+      <h2 style="color:#b5651d;">⚠️ たいせつな おしらせ</h2>
+      <p class="muted">この アプリは じどうで ほぞんされません。つかい おわるまえに、かならず「💾 きろくを ファイルに ほぞんする」を おしてね。つぎに つかうときは、その ファイルを「よみこむ」からえらんでね。</p>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav class="bottom-nav">
+  <button id="nav-home" class="active" onclick="goScreen('home')"><span class="ico">🏠</span>ホーム</button>
+  <button id="nav-log" onclick="goScreen('log')"><span class="ico">✅</span>きろく</button>
+  <button id="nav-chart" onclick="goScreen('chart')"><span class="ico">📈</span>グラフ</button>
+  <button id="nav-menu" onclick="goScreen('menu')"><span class="ico">🍽️</span>メニュー</button>
+  <button id="nav-save" onclick="goScreen('save')"><span class="ico">💾</span>ほぞん</button>
+</nav>
+
+<script>
+/* ===================== データ ===================== */
+let records = {};           // { "YYYY-MM-DD": {weight, measured, glucose, checklist:{...}} }
+let currentDate = todayStr();
+let currentDraft = null;    // その日の下書き
+
+const CHECK_ITEMS = [
+  {id:"veg",      icon:"🥗", label:"やさいから たべた"},
+  {id:"portion",  icon:"🍚", label:"しゅしょくは てきりょうだった"},
+  {id:"nodrink",  icon:"🚫", label:"あまい のみものを のまなかった"},
+  {id:"walk",     icon:"🚶", label:"あるいた・うんどうした"},
+  {id:"strength", icon:"💪", label:"きんトレ・ストレッチを した"},
+];
+
+const MEAL_RULES = [
+  {icon:"🥗", title:"やさいから たべる", desc:"やさい・かいそう → にく・さかな・たまご・とうふ → ごはん の じゅんに たべると、けっとうちが 急に あがりにくく なります。"},
+  {icon:"🍚", title:"しゅしょくは まいしょく てきりょう", desc:"おにぎり1こ・ごはん かるく1ぱい を めやすに。ぬきすぎ、まとめぐいは NG。"},
+  {icon:"🚫", title:"あまい のみものは やめる", desc:"ジュース・かとう コーヒーは、みず・むとうちゃ・ブラックコーヒーに かえよう。"},
+];
+
+const CONBINI_ITEMS = [
+  {icon:"🍗", cat:"たんぱくしつ", items:"サラダチキン / ゆでたまご / やきとり(しお) / なっとう / ひややっこ / えだまめ"},
+  {icon:"🥦", cat:"やさい・しょくもつせんい", items:"カットやさい サラダ / かいそう サラダ / きのこ いり みそしる"},
+  {icon:"🍙", cat:"しゅしょく(てきりょう)", items:"おにぎり 1こ(げんまい・ざっこくが あれば なお よい) / ロールパン 1こ"},
+  {icon:"🍵", cat:"のみもの", items:"みず / むとうちゃ / ブラックコーヒー"},
+  {icon:"🍨", cat:"かんしょく", items:"むとう ヨーグルト / すやき ナッツ すこしだけ / チーズ"},
+];
+
+const MEAL_PATTERNS = {
+  A: {title:"パターンA:コンビニ ちゅうしん の ひ", rows:[
+    ["あさごはん","ゆでたまご1こ + むとうヨーグルト + ミニトマト"],
+    ["ひるごはん","サラダチキン + カットやさいサラダ + おにぎり1こ + みそしる"],
+    ["よるごはん","やきざかな or やきとり + ひややっこ or えだまめ + ごはん かるく1ぱい"],
+    ["かんしょく","すやきナッツ ひとにぎり、または むとうヨーグルト"],
+  ]},
+  B: {title:"パターンB:がいしょく ちゅうしん の ひ", rows:[
+    ["あさごはん","ゆでたまご + ヨーグルトなど かるめに(たべないのは NG)"],
+    ["ひるごはん","ていしょくやで「やきざかな ていしょく」など。ごはん すくなめで。どんぶり・カレーより ていしょく"],
+    ["よるごはん","やきもの・さしみ・とうふ りょうりを ちゅうしんに。めんるいは やさい おおめ・しるは のこす"],
+    ["のみもの","おさけは てきりょうに(かんビール1ぽん くらい)。あまい カクテルは さける"],
+  ]},
+};
+
+const EXERCISES = [
+  {icon:"🚶", title:"インターバル そくほ(メインの うんどう)", desc:"はやあるき 3ぷん → ゆっくり あるき 3ぷん を 1セットとして 5セット(あわせて 30ぷん)。しゅう 4〜5かい。こしが いたいときは たいらな みちを えらんでね。"},
+  {icon:"🧍", title:"かべ たてふせ", desc:"かべに てを ついて、ひじを まげのばし。10〜15かい ×2セット"},
+  {icon:"🪑", title:"チェア スクワット", desc:"いすの まえに たち、こしを かるく おろして たちあがる。10かい ×2セット"},
+  {icon:"🐾", title:"バードドッグ", desc:"よつばいで、うでと あしを のばして キープ。さゆう 5かいずつ ×2セット"},
+  {icon:"🛌", title:"デッドバグ", desc:"あおむけで かた足と はんたいの うでを のばす。こしを ゆかから はなさない。さゆう 5かいずつ ×2セット"},
+  {icon:"🧘", title:"ストレッチ(まいにち)", desc:"またの うら・おしりを のばす ストレッチを さゆう かく30びょう。むりを しない。"},
+];
+
+const WEEKLY_SCHEDULE = [
+  ["げつ","インターバルそくほ"],
+  ["か","きんトレ + ストレッチ"],
+  ["すい","インターバルそくほ"],
+  ["もく","きゅうよう(ストレッチのみ)"],
+  ["きん","インターバルそくほ"],
+  ["ど","きんトレ + ストレッチ"],
+  ["にち","かるい さんぽ or きゅうよう"],
+];
+
+/* ===================== ユーティリティ ===================== */
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function fmtDateJP(dstr){
+  const [y,m,d] = dstr.split("-").map(Number);
+  const wk = ["にち","げつ","か","すい","もく","きん","ど"][new Date(y,m-1,d).getDay()];
+  return `${y}ねん ${m}がつ ${d}にち(${wk})`;
+}
+function fmtDateShort(dstr){
+  const [y,m,d] = dstr.split("-").map(Number);
+  return `${m}/${d}`;
+}
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+function lastWeightBefore(){
+  const dates = Object.keys(records).sort();
+  if(dates.length===0) return 75.0;
+  return records[dates[dates.length-1]].weight;
+}
+
+/* ===================== 画面切り替え ===================== */
+function goScreen(name){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById("screen-"+name).classList.add("active");
+  document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.remove("active"));
+  const navBtn = document.getElementById("nav-"+name);
+  if(navBtn) navBtn.classList.add("active");
+  if(name==="log") renderLogScreen();
+  if(name==="chart") renderCharts();
+  if(name==="home") renderHome();
+  if(name==="menu") renderMenu();
+  window.scrollTo(0,0);
+}
+
+/* ===================== ホーム ===================== */
+function renderHome(){
+  const dates = Object.keys(records).sort();
+  if(dates.length===0){
+    document.getElementById("home-latest-weight").textContent = "--";
+    document.getElementById("home-latest-date").textContent = "まだ きろくが ありません";
+  } else {
+    const last = dates[dates.length-1];
+    document.getElementById("home-latest-weight").textContent = records[last].weight.toFixed(1)+" kg";
+    document.getElementById("home-latest-date").textContent = fmtDateJP(last) + " の きろく";
+  }
+}
+
+/* ===================== きろく画面 ===================== */
+function changeDate(diff){
+  const d = new Date(currentDate+"T00:00:00");
+  d.setDate(d.getDate()+diff);
+  currentDate = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  loadDraftForDate();
+  renderLogScreen();
+}
+function loadDraftForDate(){
+  if(records[currentDate]){
+    currentDraft = JSON.parse(JSON.stringify(records[currentDate]));
+  } else {
+    currentDraft = { weight: lastWeightBefore(), measured:false, glucose:100, checklist:{} };
+  }
+}
+function renderLogScreen(){
+  if(!currentDraft) loadDraftForDate();
+  document.getElementById("log-date-display").textContent = fmtDateJP(currentDate);
+  document.getElementById("weight-val").textContent = currentDraft.weight.toFixed(1);
+  document.getElementById("glucose-val").textContent = Math.round(currentDraft.glucose);
+  document.getElementById("glucose-off-btn").classList.toggle("on", !currentDraft.measured);
+  document.getElementById("glucose-on-btn").classList.toggle("on", !!currentDraft.measured);
+  document.getElementById("glucose-input-area").style.display = currentDraft.measured ? "block" : "none";
+
+  const area = document.getElementById("checklist-area");
+  area.innerHTML = "";
+  CHECK_ITEMS.forEach(item=>{
+    const done = !!currentDraft.checklist[item.id];
+    const div = document.createElement("div");
+    div.className = "check-item" + (done ? " done" : "");
+    div.onclick = ()=>{ currentDraft.checklist[item.id] = !currentDraft.checklist[item.id]; renderLogScreen(); };
+    div.innerHTML = `<span class="ico">${item.icon}</span><span class="txt">${item.label}</span><span class="mark">${done?"✅":"⬜"}</span>`;
+    area.appendChild(div);
+  });
+}
+function stepWeight(delta){
+  currentDraft.weight = Math.round((currentDraft.weight + delta)*10)/10;
+  if(currentDraft.weight < 30) currentDraft.weight = 30;
+  if(currentDraft.weight > 200) currentDraft.weight = 200;
+  renderLogScreen();
+}
+function stepGlucose(delta){
+  currentDraft.glucose = Math.max(30, Math.min(500, currentDraft.glucose + delta));
+  renderLogScreen();
+}
+function setGlucoseMeasured(v){
+  currentDraft.measured = v;
+  renderLogScreen();
+}
+function saveEntry(){
+  records[currentDate] = JSON.parse(JSON.stringify(currentDraft));
+  toast("✅ " + fmtDateJP(currentDate) + " の きろくを ほぞんしました");
+  renderHome();
+}
+
+/* ===================== グラフ画面 ===================== */
+function renderCharts(){
+  const dates = Object.keys(records).sort();
+  const weightPts = dates.filter(d=>records[d].weight!=null).map(d=>({date:d, value:records[d].weight}));
+  const glucosePts = dates.filter(d=>records[d].measured).map(d=>({date:d, value:records[d].glucose}));
+
+  document.getElementById("weight-chart-area").innerHTML = chartOrEmpty(weightPts, "#2a78d6", "kg", "たいじゅうの きろくが まだ ありません");
+  document.getElementById("glucose-chart-area").innerHTML = chartOrEmpty(glucosePts, "#eb6834", "mg/dL", "けっとうちの きろくが まだ ありません");
+}
+function chartOrEmpty(pts, color, unit, emptyMsg){
+  if(pts.length===0){
+    return `<div class="empty-state"><div class="ico">📭</div><div>${emptyMsg}</div></div>`;
+  }
+  return buildSvgChart(pts, color, unit) + buildTable(pts, unit);
+}
+function buildSvgChart(pts, color, unit){
+  const W = 500, H = 220, padL = 42, padR = 16, padT = 16, padB = 30;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const values = pts.map(p=>p.value);
+  let minV = Math.min(...values), maxV = Math.max(...values);
+  if(minV===maxV){ minV -= 1; maxV += 1; }
+  const pad = (maxV-minV)*0.15;
+  minV -= pad; maxV += pad;
+
+  const x = i => pts.length===1 ? padL + plotW/2 : padL + (plotW * i/(pts.length-1));
+  const y = v => padT + plotH - ((v-minV)/(maxV-minV))*plotH;
+
+  // gridlines (4)
+  let grid = "";
+  const steps = 4;
+  for(let i=0;i<=steps;i++){
+    const gv = minV + (maxV-minV)*i/steps;
+    const gy = y(gv);
+    grid += `<line x1="${padL}" y1="${gy}" x2="${W-padR}" y2="${gy}" stroke="var(--gridline)" stroke-width="1"/>`;
+    grid += `<text x="${padL-6}" y="${gy+4}" font-size="11" fill="var(--text-muted)" text-anchor="end">${gv.toFixed(1)}</text>`;
+  }
+
+  // line path
+  let path = pts.map((p,i)=> (i===0?"M":"L") + x(i).toFixed(1) + " " + y(p.value).toFixed(1)).join(" ");
+
+  // points + x labels (thin if many)
+  const labelEvery = pts.length > 8 ? Math.ceil(pts.length/8) : 1;
+  let points = "";
+  let xlabels = "";
+  pts.forEach((p,i)=>{
+    points += `<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="5" fill="${color}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+    if(i % labelEvery === 0 || i===pts.length-1){
+      xlabels += `<text x="${x(i).toFixed(1)}" y="${H-8}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${fmtDateShort(p.date)}</text>`;
+    }
+  });
+
+  const last = pts[pts.length-1];
+
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    ${grid}
+    <line x1="${padL}" y1="${padT+plotH}" x2="${W-padR}" y2="${padT+plotH}" stroke="var(--baseline)" stroke-width="1.5"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points}
+    ${xlabels}
+  </svg>
+  <div style="text-align:center; font-size:14px; color:var(--text-secondary); margin-top:4px;">さいしん: <b style="color:var(--text-primary)">${last.value}${unit}</b>(${fmtDateJP(last.date)})</div>`;
+}
+function buildTable(pts, unit){
+  const recent = pts.slice(-7).reverse();
+  let rows = recent.map(p=>`<tr><td>${fmtDateJP(p.date)}</td><td>${p.value} ${unit}</td></tr>`).join("");
+  return `<h3>📋 さいきんの きろく</h3><table class="simple-table"><tr><th>ひづけ</th><th>あたい</th></tr>${rows}</table>`;
+}
+
+/* ===================== メニュー画面 ===================== */
+function showTab(name){
+  document.getElementById("tab-meal-btn").classList.toggle("on", name==="meal");
+  document.getElementById("tab-exercise-btn").classList.toggle("on", name==="exercise");
+  document.getElementById("tab-meal").classList.toggle("on", name==="meal");
+  document.getElementById("tab-exercise").classList.toggle("on", name==="exercise");
+}
+function renderMenu(){
+  const mealDiv = document.getElementById("tab-meal");
+  if(!mealDiv.dataset.built){
+    let html = `<div class="card"><h2>📌 3つの きほんルール</h2>`;
+    MEAL_RULES.forEach(r=>{
+      html += `<div class="menu-card"><div class="ico">${r.icon}</div><div><div class="title">${r.title}</div><div class="desc">${r.desc}</div></div></div>`;
+    });
+    html += `</div>`;
+
+    html += `<div class="card"><h2>🏪 コンビニで そろう しょくざい</h2>`;
+    CONBINI_ITEMS.forEach(c=>{
+      html += `<div class="menu-card"><div class="ico">${c.icon}</div><div><div class="title">${c.cat}</div><div class="desc">${c.items}</div></div></div>`;
+    });
+    html += `</div>`;
+
+    ["A","B"].forEach(k=>{
+      const p = MEAL_PATTERNS[k];
+      html += `<div class="card"><h2>🍱 ${p.title}</h2><table class="simple-table"><tr><th>しょくじ</th><th>メニュー</th></tr>`;
+      p.rows.forEach(r=>{ html += `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`; });
+      html += `</table></div>`;
+    });
+
+    mealDiv.innerHTML = html;
+    mealDiv.dataset.built = "1";
+  }
+
+  const exDiv = document.getElementById("tab-exercise");
+  if(!exDiv.dataset.built){
+    let html = `<div class="card"><h2>🏃 うんどう メニュー</h2>`;
+    EXERCISES.forEach(e=>{
+      html += `<div class="menu-card"><div class="ico">${e.icon}</div><div><div class="title">${e.title}</div><div class="desc">${e.desc}</div></div></div>`;
+    });
+    html += `</div>`;
+
+    html += `<div class="card"><h2>🗓️ 1しゅうかんの よてい</h2><table class="simple-table"><tr><th>ようび</th><th>ないよう</th></tr>`;
+    WEEKLY_SCHEDULE.forEach(w=>{ html += `<tr><td>${w[0]}</td><td>${w[1]}</td></tr>`; });
+    html += `</table></div>`;
+
+    exDiv.innerHTML = html;
+    exDiv.dataset.built = "1";
+  }
+}
+
+/* ===================== ほぞん・よみこみ ===================== */
+function downloadData(){
+  const payload = { app:"kenkou-support", version:1, savedAt: new Date().toISOString(), records };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const d = new Date();
+  const fname = "kenkou_kiroku_" + d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0") + ".json";
+  a.href = url; a.download = fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  document.getElementById("save-status").textContent = "✅ " + fname + " として ほぞんしました(" + new Date().toLocaleString("ja-JP") + ")";
+  toast("💾 ほぞんしました");
+}
+function loadDataFile(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if(!data.records) throw new Error("bad format");
+      records = data.records;
+      document.getElementById("load-status").textContent = "✅ よみこみ かんりょう(" + Object.keys(records).length + "けんの きろく)";
+      toast("📂 きろくを よみこみました");
+      renderHome();
+    } catch(err){
+      document.getElementById("load-status").textContent = "⚠️ ファイルを よみこめませんでした。せいしいファイルか かくにんしてね。";
+    }
+  };
+  reader.readAsText(file);
+  evt.target.value = "";
+}
+
+/* ===================== 初期化 ===================== */
+loadDraftForDate();
+renderHome();
+</script>
+</body>
+</html>
